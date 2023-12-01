@@ -77,7 +77,6 @@ def process_data(sensor_folder,
                 fall_data = fall_file['file_name'][fall_file['file_name'].index(file)]
                 # open the fall data file
                 data_file = os.path.join(sensor_folder, fall_data)
-                #data = load_data(data_file)
                 data = pd.read_csv(data_file)
                 # drop the column of TimeStamp(s)
                 data = data.drop(columns=['TimeStamp(s)'])
@@ -86,7 +85,6 @@ def process_data(sensor_folder,
                 Fall_onset_frame = fall_file['Fall_onset_frame'][fall_file['file_name'].index(file)]
                 Fall_impact_frame = fall_file['Fall_impact_frame'][fall_file['file_name'].index(file)]
 
-           
                 # label: 0 for before fall, 1 for pre-impact fall, 2 for pos-impact fall
                 # add a column of label to the first column
                 # frame count smaller than Fall_onset_frame is labeled as 0,
@@ -97,7 +95,6 @@ def process_data(sensor_folder,
                 # Label the rows as 'pre-impact fall'
                 data.loc[(data['FrameCounter'] >= Fall_onset_frame) & (data['FrameCounter'] < Fall_impact_frame), 'label'] = 1
 
-                # Label the rows as 'post-impact fall'
                 #data.loc[(data['FrameCounter'] >= Fall_impact_frame) & (data['FrameCounter'] <= Fall_impact_frame + 50), 'label'] = 2
                 # remove the column of FrameCounter
                 data = data.drop(columns=['FrameCounter'])
@@ -112,9 +109,9 @@ def process_data(sensor_folder,
 
                 if len(data) - window_size > len(data)/2:
                     for i in range(num_window_fall_data):
-                        # Then, randomly select a starting index for the window
+                        # randomly select a starting index for the window
                         start_index = np.random.randint(0, len(data) - window_size)
-                        # Then, select the window of data
+                        # select the window of data
                         window = data.iloc[start_index : start_index + window_size]
 
                         # randomly select 10 windows from the fall data
@@ -131,9 +128,9 @@ def process_data(sensor_folder,
                 elif 0 < len(data) - window_size < len(data)/2:
                     # sample half number of windows
                     for i in range(int(num_window_fall_data/2)):
-                        # Then, randomly select a starting index for the window
+                        # randomly select a starting index for the window
                         start_index = np.random.randint(0, len(data) - window_size)
-                        # Then, select the window of data
+                        # select the window of data
                         window = data.iloc[start_index : start_index + window_size]
 
                         # randomly select 10 windows from the fall data
@@ -145,9 +142,9 @@ def process_data(sensor_folder,
                     
                             new_window = pd.DataFrame({'label': [1], 'data': [values]})
                             window_data = pd.concat([window_data, new_window], ignore_index=True)
-                            #print(new_window['label'])
+                            
                 else:
-                    # interpolate the data to the window_size
+                    # resample the data to the window_size if the data is too short
                     window = resample(data, window_size)
                     if len(window[window['label'] == 1]) >= num_threshold:
                         window = window.drop(columns=['label'])
@@ -172,10 +169,10 @@ def process_data(sensor_folder,
 
                     # randomly select 3 windows from the non-fall data
                     for i in range(num_window_not_fall_data):
-                        # Then, randomly select a starting index for the window
+                        # randomly select a starting index for the window
                         
                         start_index = np.random.randint(0, len(data) - window_size)
-                        # Then, select the window of data
+                        # select the window of data
                         window = data.iloc[start_index : start_index + window_size]
                         window = window.drop(columns=['label'])
                         window = np.array(window.values)
@@ -186,9 +183,9 @@ def process_data(sensor_folder,
                 elif 0 < len(data) - window_size < len(data)/2:
                     # sample half number of windows
                     for i in range(int(num_window_not_fall_data/2)):
-                        # Then, randomly select a starting index for the window
+                        # randomly select a starting index for the window
                         start_index = np.random.randint(0, len(data) - window_size)
-                        # Then, select the window of data
+                        # select the window of data
                         window = data.iloc[start_index : start_index + window_size]
                         window = window.drop(columns=['label'])
                         window = np.array(window.values)
@@ -196,7 +193,7 @@ def process_data(sensor_folder,
                         window_data = pd.concat([window_data, new_window], ignore_index=True)
 
                 else:
-                    # interpolate the data to the window_size
+                    v
                     data = data.drop(columns=['label'])
                     window = resample(data, window_size)
                     new_window = pd.DataFrame({'label': [0], 'data': [window]})
@@ -211,12 +208,8 @@ def process_data(sensor_folder,
         data = data.values
         label = np.array(label.values)
         #label = label.values
-        # Convert the numpy array of lists/arrays into a 3-dimensional numpy array
         data = np.concatenate(data.tolist()).reshape(-1, window_size, 9)
 
-    
-
-        #return processed_data, processed_label # list of np array, list of np array
         return data, label
 
 
