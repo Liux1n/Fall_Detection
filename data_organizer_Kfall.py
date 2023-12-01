@@ -193,7 +193,7 @@ def process_data(sensor_folder,
                         window_data = pd.concat([window_data, new_window], ignore_index=True)
 
                 else:
-                    v
+                    
                     data = data.drop(columns=['label'])
                     window = resample(data, window_size)
                     new_window = pd.DataFrame({'label': [0], 'data': [window]})
