@@ -209,7 +209,9 @@ def process_data(sensor_folder,
         label = np.array(label.values)
         #label = label.values
         data = np.concatenate(data.tolist()).reshape(-1, window_size, 9)
-
+        # transpose the data to (batch_size, channels, window_size)
+        data = data.transpose(0, 2, 1)
+        print(data.shape)   
         return data, label
 
 
