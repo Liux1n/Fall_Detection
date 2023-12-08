@@ -24,3 +24,5 @@ build/
 
 # Datasets
 datasets/
+data/
+saved_models/
