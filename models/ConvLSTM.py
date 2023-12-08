@@ -22,6 +22,7 @@ class ConvLSTM(nn.Module):
         self.dropout1 = nn.Dropout(0.5)
         self.lstm2 = nn.LSTM(input_size=64, hidden_size=64, batch_first=True)
         self.dropout2 = nn.Dropout(0.5)
+        
 
         self.fc = nn.Linear(64, 2)  # No need for softmax here when using nn.CrossEntropyLoss
     
