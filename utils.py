@@ -3,6 +3,10 @@ import torch
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix
 import itertools
+import os
+import zipfile
+import tempfile
+
 
 def truth_test(_test,_pred, i):
     _test = np.array(_test)
@@ -173,3 +177,15 @@ def plot_confusion_matrix(cm, classes,
     plt.tight_layout()
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
+
+    
+
+def get_gzipped_model_size(file):
+    # It returns the size of the gzipped model in bytes.
+    
+    
+    _, zipped_file = tempfile.mkstemp('.zip')
+    with zipfile.ZipFile(zipped_file, 'w', compression=zipfile.ZIP_DEFLATED) as f:
+        f.write(file)
+    
+    return os.path.getsize(zipped_file)
