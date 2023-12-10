@@ -36,5 +36,5 @@ def ConvLSTM():
         
         # softmax
         layers.Softmax()
-    ])
+    ], name='ConvLSTM')
     return model

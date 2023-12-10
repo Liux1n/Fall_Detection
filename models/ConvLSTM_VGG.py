@@ -29,5 +29,5 @@ def ConvLSTM_VGG():
         layers.Dense(32, activation='relu'),
         layers.Dense(2, activation='relu'),
         layers.Softmax()
-    ])
+    ], name='ConvLSTM_VGG')
     return model
