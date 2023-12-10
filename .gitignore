@@ -25,4 +25,6 @@ build/
 # Datasets
 datasets/
 data/
+
+# Exported Models
 saved_models/
