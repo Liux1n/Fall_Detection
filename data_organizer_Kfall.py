@@ -219,13 +219,14 @@ def DataOrganizer(sensor_data_folder,
                        window_size,
                        threshold = 0.1,
                        num_window_fall_data = 10,
-                       num_window_not_fall_data = 3):
+                       num_window_not_fall_data = 3, 
+                       mode = 'ACC+GYRO'):
     
     window_size = window_size
     threshold = threshold
     num_window_fall_data = num_window_fall_data
     num_window_not_fall_data = num_window_not_fall_data
-
+    mode = mode
     all_data = []
     all_label = []
     # delete the hidden file .DS_Store
@@ -259,6 +260,12 @@ def DataOrganizer(sensor_data_folder,
     # Concatenate the all_data and all_label lists
     all_data = np.concatenate(all_data)
     all_label = np.concatenate(all_label)
+    if mode == "ACC":
+        all_data = all_data[:, :, 0:3]
+    elif mode == "ACC+GYRO":
+        all_data = all_data[:, :, 0:6]
+    elif mode == "ACC+GYRO+MAG":
+        all_data = all_data[:, :, 0:9]
     
     return all_data, all_label
 
