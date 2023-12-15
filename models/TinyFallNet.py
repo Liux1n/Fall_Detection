@@ -1,9 +1,9 @@
 import keras
 from keras import layers
 
-def TinyFallNet():
-    inputs = keras.Input(shape=(50, 9))
-    x = layers.Reshape((1, 50, 9))(inputs)
+def TinyFallNet(axis_num=9):
+    inputs = keras.Input(shape=(50, axis_num))
+    x = layers.Reshape((1, 50, axis_num))(inputs)
     x = layers.Conv2D(filters=64, kernel_size=(1, 3))(x)
 
     x = layers.MaxPooling2D(pool_size=(1, 2))(x)
