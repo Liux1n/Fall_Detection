@@ -13,7 +13,7 @@ load_from_checkpoint: False
 acc_max: 4 # acc clamp
 gyro_max: 500 # gyro clamp
 # Hyperparameters
-learning_rate: 5e-4
+learning_rate: 0.0005
 batch_size: 64
 epochs: 50
 lr_factor: 0.5

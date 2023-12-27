@@ -121,7 +121,7 @@ def rescale_data(
     data_copy = data.copy()
     data_copy[:, :, 0] = np.clip(data_copy[:, :, 0], -acc_max, acc_max)
     data_copy[:, :, 1] = np.clip(data_copy[:, :, 1], -acc_max, acc_max)
-    data_copy[:, :, 2] = np.clip(data[:, :, 2], -acc_max, acc_max)
+    data_copy[:, :, 2] = np.clip(data_copy[:, :, 2], -acc_max, acc_max)
 
     data_copy[:, :, 3] = np.clip(data_copy[:, :, 3], -gyro_max, gyro_max)
     data_copy[:, :, 4] = np.clip(data_copy[:, :, 4], -gyro_max, gyro_max)

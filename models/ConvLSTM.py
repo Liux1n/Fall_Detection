@@ -1,9 +1,10 @@
 from keras import layers, models
 
-def ConvLSTM():
+def ConvLSTM(axis_num=9):
     model = models.Sequential([
+        layers.Reshape((1, 50, axis_num), input_shape=(50, axis_num)),
         # Conv1
-        layers.Conv2D(filters=64, kernel_size=(1, 7), padding='same', input_shape=(1, 50, 9)),
+        layers.Conv2D(filters=64, kernel_size=(1, 7), padding='same'),
         layers.BatchNormalization(),
         layers.ReLU(),
         layers.MaxPooling2D(pool_size=(1, 2)),
