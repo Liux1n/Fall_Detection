@@ -1,0 +1,21 @@
+# data config
+window_size: 50 # window size
+fall_threshold: 0.4 # threshold for windows labeled as fall
+num_window_fall_data: 50   # number of windows labeled as fall
+num_window_not_fall_data: 15    # number of windows labeled as not fall
+# mac liuxin
+data_path_mac: "/Users/liuxinqing/Documents/Kfall" 
+# win liuxin
+data_path_win: "G:/MLonMCU/Kfall_dataset" 
+# linux liyinrong
+data_path_linux: "/home/liyinrong/Projects/MLonMCU/Final/Fall_Detection/datasets/KFall" 
+load_from_checkpoint: False
+acc_max: 4 # acc clamp
+gyro_max: 500 # gyro clamp
+# Hyperparameters
+learning_rate: 5e-4
+batch_size: 64
+epochs: 50
+lr_factor: 0.5
+patience: 5
+confidence: 0.7

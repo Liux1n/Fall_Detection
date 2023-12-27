@@ -6,7 +6,8 @@ import itertools
 import os
 import zipfile
 import tempfile
-
+from scipy.stats import gaussian_kde
+from typing import Optional 
 
 def truth_test(_test,_pred, i):
     _test = np.array(_test)
@@ -79,3 +80,66 @@ def get_gzipped_model_size(file):
         f.write(file)
     
     return os.path.getsize(zipped_file)
+
+
+def rescale(x, min, max, new_min, new_max):
+    return (x - min) / (max - min) * (new_max - new_min) + new_min
+
+def plot_CDF(fall_data, not_fall_data, title):
+    # Compute KDEs
+    kde_fall = gaussian_kde(fall_data.flatten())
+    kde_not_fall = gaussian_kde(not_fall_data.flatten())
+
+    # Generate values for x-axis
+    x = np.linspace(min(fall_data.min(), not_fall_data.min()), 
+                    max(fall_data.max(), not_fall_data.max()), 1000)
+
+    # Compute densities
+    density_fall = kde_fall(x)
+    density_not_fall = kde_not_fall(x)
+
+    # Compute CDFs
+    cdf_fall = np.cumsum(density_fall) / np.sum(density_fall)
+    cdf_not_fall = np.cumsum(density_not_fall) / np.sum(density_not_fall)
+
+    # Plot CDFs
+    plt.figure()
+    plt.plot(x, cdf_fall, label='fall')
+    plt.plot(x, cdf_not_fall, label='not fall')
+    plt.legend()
+    plt.title(title)
+    plt.show()
+
+
+def rescale_data(
+    data: np.ndarray,
+    dtype_out: np.dtype = np.int8,
+    acc_max: int = 4, 
+    gyro_max: int = 500,
+    mag_max: Optional[int] = None) -> np.ndarray:
+
+    data_copy = data.copy()
+    data_copy[:, :, 0] = np.clip(data_copy[:, :, 0], -acc_max, acc_max)
+    data_copy[:, :, 1] = np.clip(data_copy[:, :, 1], -acc_max, acc_max)
+    data_copy[:, :, 2] = np.clip(data[:, :, 2], -acc_max, acc_max)
+
+    data_copy[:, :, 3] = np.clip(data_copy[:, :, 3], -gyro_max, gyro_max)
+    data_copy[:, :, 4] = np.clip(data_copy[:, :, 4], -gyro_max, gyro_max)
+    data_copy[:, :, 5] = np.clip(data_copy[:, :, 5], -gyro_max, gyro_max)
+    
+    info = np.iinfo(dtype_out)
+    min = info.min
+    max = info.max
+
+    data_copy[:, :, 0] = rescale(data_copy[:, :, 0], -acc_max, acc_max, min, max)
+    data_copy[:, :, 1] = rescale(data_copy[:, :, 1], -acc_max, acc_max, min, max)
+    data_copy[:, :, 2] = rescale(data_copy[:, :, 2], -acc_max, acc_max, min, max)
+
+    data_copy[:, :, 3] = rescale(data_copy[:, :, 3], -gyro_max, gyro_max, min, max)
+    data_copy[:, :, 4] = rescale(data_copy[:, :, 4], -gyro_max, gyro_max, min, max)
+    data_copy[:, :, 5] = rescale(data_copy[:, :, 5], -gyro_max, gyro_max, min, max)
+
+    data_copy = data_copy.astype(dtype_out)
+
+    return data_copy
+   

@@ -94,24 +94,26 @@ def process_data(sensor_folder,
                 # Label the rows as 'pre-impact fall'
                 data.loc[(data['FrameCounter'] >= Fall_onset_frame) & (data['FrameCounter'] < Fall_impact_frame), 'label'] = 1
 
-                #data.loc[(data['FrameCounter'] >= Fall_impact_frame) & (data['FrameCounter'] <= Fall_impact_frame + 50), 'label'] = 2
+                # delete the data after the impact
+                data = data[data['FrameCounter'] < Fall_impact_frame]
+
+                
                 # remove the column of FrameCounter
                 data = data.drop(columns=['FrameCounter'])
 
-                # TODO: now we have the widow with widnow_size = 256. We have now three labels: 0, 1 for not FAll and FALL
-                #  for the window.
-                # To translate the temporal (i.e. per-sample) labels described above into window labels we adopted to the 
-                # following criteria:
-                #    • each window containing at least 10% of readings labeled as FALL was tagged as FALL altogether;
-                #    • each non-FALL window in which the majority of samples was labeled as ALERT is tagged as ALERT;
-                #    • any other window was tagged to the BKG class.
-
                 if len(data) - window_size > len(data)/2:
                     for i in range(num_window_fall_data):
-                        # randomly select a starting index for the window
-                        start_index = np.random.randint(0, len(data) - window_size)
-                        # select the window of data
-                        window = data.iloc[start_index : start_index + window_size]
+                        # randomly select a ending index for the window
+                        # the randow ending index should be in range of (window_size, len(data))
+                        end_index = np.random.randint(window_size, len(data))
+
+                        # select the window of data based on the ending index
+                        window = data.iloc[end_index - window_size : end_index]
+
+                        # # select the window of data based on the starting index
+                        # start_index = np.random.randint(0, len(data) - window_size)
+                        # # select the window of data
+                        # window = data.iloc[start_index : start_index + window_size]
 
                         # randomly select 10 windows from the fall data
                         #each window containing at least 10% of readings labeled as FALL was tagged as FALL altogether;
@@ -127,10 +129,14 @@ def process_data(sensor_folder,
                 elif 0 < len(data) - window_size < len(data)/2:
                     # sample half number of windows
                     for i in range(int(num_window_fall_data/2)):
-                        # randomly select a starting index for the window
-                        start_index = np.random.randint(0, len(data) - window_size)
-                        # select the window of data
-                        window = data.iloc[start_index : start_index + window_size]
+                        
+                        end_index = np.random.randint(window_size, len(data))
+                        window = data.iloc[end_index - window_size : end_index]
+
+                        # # randomly select a starting index for the window
+                        # start_index = np.random.randint(0, len(data) - window_size)
+                        # # select the window of data
+                        # window = data.iloc[start_index : start_index + window_size]
 
                         # randomly select 10 windows from the fall data
                         #each window containing at least 10% of readings labeled as FALL was tagged as FALL altogether;
@@ -173,6 +179,8 @@ def process_data(sensor_folder,
                         start_index = np.random.randint(0, len(data) - window_size)
                         # select the window of data
                         window = data.iloc[start_index : start_index + window_size]
+
+                        
                         window = window.drop(columns=['label'])
                         window = np.array(window.values)
                         new_window = pd.DataFrame({'label': [0], 'data': [window]})
