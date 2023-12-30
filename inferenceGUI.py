@@ -5,6 +5,10 @@ import serial
 import threading
 import queue
 import re
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
+import time
 
 
 class inferenceGUI:
@@ -17,10 +21,10 @@ class inferenceGUI:
             port='COM3', 
             baudrate=115200, 
             MCU = 'STM32', # 'STM32' or 'MAX'
-            confidence = 0.95
+            confidence = 0.95, # confidence threshold for falling
+            num_consecutive_falls = 5 # number of consecutive falls to trigger alarm
             ):
-        
-
+         
         self.acc_max = acc_max
         self.gyro_max = gyro_max
         self.MCU = MCU
@@ -28,6 +32,7 @@ class inferenceGUI:
         self.baudrate = baudrate
         self.X_test = X_test
         self.y_test = y_test
+        self.num_consecutive_falls = num_consecutive_falls
 
         if not (self.X_test.dtype == np.int8 or self.X_test.dtype == np.int16):
             self.X_test = self.X_test.astype(np.float32) # (1, 50, 6)
@@ -87,61 +92,6 @@ class inferenceGUI:
         # Start a new thread to update the page
         threading.Thread(target=self.serial_daemon, daemon=True).start()
 
-    def test_once_on_MCU(self):
-        x, y = next(self.test_data)
-        
-        # shape of x needs to be (1, 50, 6), and type needs to be float32
-        x = np.expand_dims(x, axis=0)
-        
-        x_bytes = x.tobytes()
-
-        while self.serial_in_use:
-            pass
-        self.serial_in_use = True
-        self.ser.reset_input_buffer()
-        self.ser.write(b'Connect\r\n')
-        line = self.ser.readline().decode('utf-8').strip()
-        if line == 'Echo':
-            self.ser.write(x_bytes)
-            line = self.ser.readline().decode('utf-8').strip() # z.B.-127,127
-            if line == 'Data received.':
-                print('Data sent to MCU.')
-            else:
-                print('Data sending timeout.')
-        else:
-            print('Handshake timeout')
-        self.serial_in_use = False
-        (output1, output2) = self.queue.get(timeout=3)
-        if output1 >= output2:
-            y_pred = 0
-        else:
-            y_pred = 1
-        self.total += 1
-        if y == y_pred:
-            self.correct += 1
-
-        if y == 0:
-            self.label_text.set('Not Falling')
-            self.left_frame.config(bg='green')
-            self.label.config(background='green')
-            self.label2.config(background='green')
-        else:
-            self.label_text.set('Falling')
-            self.left_frame.config(bg='red')
-            self.label.config(background='red')
-            self.label2.config(background='red')
-        if y_pred == 0:
-            self.prediction_text.set('Not Falling')
-            self.right_frame.config(bg='green')
-            self.prediction_label.config(background='green')
-            self.prediction_label2.config(background='green')
-        else:
-            self.prediction_text.set('Falling')
-            self.right_frame.config(bg='red')
-            self.prediction_label.config(background='red')
-            self.prediction_label2.config(background='red')
-        self.task = None
-
 
     def reset(self):
         # Reset the page
@@ -151,7 +101,7 @@ class inferenceGUI:
   
 
     def serial_daemon(self):
-
+        
         while True:
        
             while self.serial_in_use:
@@ -168,30 +118,50 @@ class inferenceGUI:
                         elapsed_time = int(match.group(3))
                         print(f'Inference output received, output1: {output1}, output2: {output2}, inference delay: {elapsed_time}us.')
                         if self.mode == 1:
-                            self.queue.put((output1, output2))
+                            self.queue.put((output1, output2, elapsed_time))
                         elif self.mode == 2:
                             # self.pause_event.wait() 
                             if output1 >= output2 or output2 <= self.confidence*127:
                             # if output1>=output2:
+                                # if self.impact_onset: # safe & impact in last frame
+                                #     self.safe = True
+                                # self.impact_onset = False
                                 self.pred_label.config(text="You are safe!")
                             else:
-                                self.pred_label.config(text="You are Falling!!! Call 112!!!")
+                                self.fall_judement += 1
+                                if self.fall_judement >= self.num_consecutive_falls:
+                                    # self.pred_label.config(text="You are Falling!!! Call 112!!!")
+                                    for i in range(30, 0, -1):
+                                        self.pred_label.config(text=f"You are Falling!!! Call 112!!!\nReset in {i/10:.1f}(s)...")
+                                        time.sleep(0.1)
+                                    self.fall_judement = 0
+                                # self.pred_label.config(text="You are Falling!!! Call 112!!!")
+                                # self.impact_onset = True
+                                # if self.safe and self.impact_onset: # falling & safe in last frame
+        
+                                    
+                                #     # time.sleep(2)
+                                #     for i in range(30, 0, -1):
+                                #         self.pred_label.config(text=f"You are Falling!!! Call 112!!!\nReset in {i/10:.1f}(s)...")
+                                #         time.sleep(0.1)
+                                #     self.safe = False
+
                                 
-              
                 # mode 1: inference on PC
                 elif line == 'Mode 1 selected.':
                     self.mode = 1
+                    # self.impact_onset = False
+                    # self.safe = False
+                    self.fall_judement = 0
                     self.show_inference_from_PC_page()
 
                 # mode 2: inference on MCU (only available for STM32)
                 elif line == 'Mode 2 selected.' and self.MCU == 'STM32':
-
                     self.mode = 2
                     self.show_inference_from_MCU_page()
 
                 # mode 0: idle
                 elif line == 'Mode 0 selected.':
-
                     self.mode = 0
                     self.show_idle_page()
                     
@@ -246,14 +216,17 @@ class inferenceGUI:
         self.manual_mode_button.pack(side=tk.RIGHT, padx=10)
     
 
-    def test_once_on_MCU_auto(self):
+    def test_on_MCU_auto(self):
+        avg_elapsed_time = 0
+
+        self.confusion_matrix = [[0, 0], [0, 0]]
+        self.confusion_matrix = np.array(self.confusion_matrix)
         
         for x, y in zip(self.X_test, self.y_test):
             self.pause_mode_auto.wait()
             if self.task is None:
                 break
 
-            # shape of x needs to be (1, 50, 6), and type needs to be float32
             x = np.expand_dims(x, axis=0)
 
             x_bytes = x.tobytes()
@@ -275,7 +248,7 @@ class inferenceGUI:
             else:
                 print('Handshake timeout')
             self.serial_in_use = False
-            (output1, output2) = self.queue.get(timeout=3)
+            (output1, output2, elapsed_time) = self.queue.get(timeout=3)
             if output1 >= output2:
                 y_pred = 0
             else:
@@ -285,11 +258,119 @@ class inferenceGUI:
                 self.correct += 1
             self.accuracy = self.correct/self.total*100
             self.accuracy = round(self.accuracy, 2)
+            # get confusion matrix
+            # y:{0,1}, y_pred:{0,1}
+            self.confusion_matrix[y][y_pred] += 1
+
+            self.f1_score = 2*self.confusion_matrix[1][1]/(2*self.confusion_matrix[1][1]+self.confusion_matrix[0][1]+self.confusion_matrix[1][0])
+
+            avg_elapsed_time = (avg_elapsed_time*(self.total-1) + elapsed_time)/self.total
             # self.idx_label.config(text=f"Infering number {self.total} out of {self.num_total} set of data\n Accuracy: {self.accuracy}")
-            self.idx_label.config(text=f"Infering number {self.total} out of {self.num_total} set of data")
-            self.accuracy_label.config(text=f"Accuracy: {self.accuracy}%")
+            self.idx_label.config(text=f"Infering {self.total} / {self.num_total} set of data")
+            self.accuracy_label.config(text=f"Accuracy: {self.accuracy}%, F1 Score: {round(self.f1_score, 3)}\nAverage Inference Time: {round(avg_elapsed_time/1000, 4)}ms")
+
+
+            if self.total % 40 == 0 or self.total == self.num_total+1 or self.total == 1:
+                self.fig = Figure(figsize=(8, 5))
+
+                # Create a subplot in the figure
+                self.ax = self.fig.add_subplot(111)
+
+                # Plot the confusion matrix
+                self.cax = self.ax.matshow(self.confusion_matrix, cmap=plt.cm.Blues)
+                self.fig.colorbar(self.cax)
+                
+                self.ax.set_xticklabels([''] + ['Not Falling', 'Falling'])
+                self.ax.set_yticklabels([''] + ['Not Falling', 'Falling'])
+                
+                # Increase the font size of the x and y labels
+                for label in (self.ax.get_xticklabels() + self.ax.get_yticklabels()):
+                    label.set_fontsize(14)
+                
+                self.ax.set_xlabel('Predicted', fontsize=14)
+                self.ax.set_ylabel('Ground Truth', fontsize=14)
+
+                thresh = self.confusion_matrix.max() / 2
+                # Add the numbers to the plot
+                for (i, j), z in np.ndenumerate(self.confusion_matrix):
+                    color = 'white' if z > thresh else 'black'
+                    self.ax.text(j, i, '{:d}'.format(int(z)), ha='center', va='center', 
+                                color=color, fontsize=14)
+
+                # Create a canvas to hold the plot
+                self.canvas = FigureCanvasTkAgg(self.fig, master=self.root)
+                self.canvas.draw()
+
+                # Get the widget from the canvas and place it under the accuracy_label
+                widget = self.canvas.get_tk_widget()
+                widget.place(relx=0.5, rely=0.6, anchor='center')
             
             print(f'Ground truth: {y}, prediction: {y_pred}')
+
+    def test_once_on_MCU(self):
+        x, y = next(self.test_data)
+    
+        x = np.expand_dims(x, axis=0)
+        
+        x_bytes = x.tobytes()
+
+        while self.serial_in_use:
+            pass
+        self.serial_in_use = True
+        self.ser.reset_input_buffer()
+        self.ser.write(b'Connect\r\n')
+        line = self.ser.readline().decode('utf-8').strip()
+        if line == 'Echo':
+            self.ser.write(x_bytes)
+            line = self.ser.readline().decode('utf-8').strip() # z.B.-127,127
+            if line == 'Data received.':
+                print('Data sent to MCU.')
+            else:
+                print('Data sending timeout.')
+        else:
+            print('Handshake timeout')
+        self.serial_in_use = False
+        (output1, output2, elapsed_time) = self.queue.get(timeout=3)
+        if output1 >= output2:
+            y_pred = 0
+        else:
+            y_pred = 1
+        self.total += 1
+        if y == y_pred:
+            self.correct += 1
+
+        if y == 0:
+            self.label_text.set('Not Falling')
+            self.left_frame.config(bg='green')
+            self.label.config(background='green')
+            self.label2.config(background='green')
+        else:
+            self.label_text.set('Falling')
+            self.left_frame.config(bg='red')
+            self.label.config(background='red')
+            self.label2.config(background='red')
+        if y_pred == 0:
+            self.prediction_text.set(f'Not Falling\nInference Time: {round(elapsed_time/1000, 4)}ms')
+            self.right_frame.config(bg='green')
+            self.prediction_label.config(background='green')
+            self.prediction_label2.config(background='green')
+        else:
+            self.prediction_text.set(f'Falling\nInference Time: {round(elapsed_time/1000, 4)}ms')
+            self.right_frame.config(bg='red')
+            self.prediction_label.config(background='red')
+            self.prediction_label2.config(background='red')
+        self.task = None
+
+
+    def update_confusion_matrix_plot(self):
+        # Update the data of the plot
+        self.cax.set_data(self.confusion_matrix)
+        # remove the colorbar
+        self.colorbar.remove()
+        self.fig.colorbar(self.cax, ax=self.ax)
+
+        # Redraw the plot
+        self.canvas.draw()
             
 
     def enter_auto_mode(self):
@@ -301,26 +382,24 @@ class inferenceGUI:
         self.total = 0
         self.current_idx = 0
         self.accuracy = 0
+        self.confusion_matrix = [[0, 0], [0, 0]]
+        self.f1_score = 0
         self.num_total = len(self.y_test)
         # reinitialize the queue
         self.queue = queue.Queue()
-        # TODO: Create the content for the self.correct, self.total and self.current_idx. They are all put inthe middle of the page
-        
-        # Create labels for the self.correct, self.total and self.current_idx
-        # self.idx_label = ttk.Label(self.root, text=f"Infering number {self.total} out of {self.num_total} set of data\n Accuracy: {self.accuracy}", font=("Arial", 40, 'bold'))
-        self.idx_label = ttk.Label(self.root, text=f"Infering number {self.total} out of {self.num_total} set of data", font=("Arial", 40, 'bold'))
+
+        self.idx_label = ttk.Label(self.root, text=f"Infering {self.total} / {self.num_total} set of data", font=("Arial", 40, 'bold'))
         self.idx_label.grid(row=0, column=1)
-        self.idx_label.place(relx=0.5, rely=0.5, anchor='center')
+        self.idx_label.place(relx=0.5, rely=0.1, anchor='center')
         # Create a label for the accuracy
         self.accuracy_label = ttk.Label(self.root, text=f"Accuracy: {self.accuracy}%", font=("Arial", 40, 'bold'))
-        self.accuracy_label.place(relx=0.5, rely=0.6, anchor='center')
+        self.accuracy_label.place(relx=0.5, rely=0.2, anchor='center')
 
         # crate a frame 
         if self.task == None:
-            self.task = threading.Thread(target=self.test_once_on_MCU_auto)
+            self.task = threading.Thread(target=self.test_on_MCU_auto)
             self.task.start()
             
-
         # Back button
         self.back_button = ttk.Button(self.root, text="Back", command=self.show_inference_from_PC_page, style='TButton')
         self.back_button.pack(pady=10)
@@ -381,11 +460,7 @@ class inferenceGUI:
 
 
     def on_button_click(self):
-        # print('on_button_click')
-        #y_pred = self.ser.readline().decode('utf-8').strip().split(',')# z.B.-127,127
 
-        # take the highest value
-        #y_pred = max(map(int, y_pred))
         if self.task == None:
             self.task = threading.Thread(target=self.test_once_on_MCU)
             self.task.start()
@@ -402,7 +477,7 @@ class inferenceGUI:
         # Add a reset button
         # self.reset_button = ttk.Button(self.root, text="Reset", command=self.show_inference_from_MCU_page)
         # self.reset_button.place(relx=0.5, rely=0.6, anchor='center')
-   
+
 
     def show_idle_page(self):
         # Clear the current content
