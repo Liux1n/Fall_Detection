@@ -17,7 +17,7 @@ learning_rate: 0.0005
 batch_size: 64
 epochs: 200
 lr_factor: 0.5 
-patience: 20 # number of epochs with no improvement after which learning rate will be reduced.
+patience: 5 # number of epochs with no improvement after which learning rate will be reduced.
 # Inference GUI config
 confidence: 0.7 # confidence threshold for fall detection
-num_consecutive_falls: 5 # number of consecutive falls to trigger alarm
+num_consecutive_falls: 2 # number of consecutive falls to trigger alarm

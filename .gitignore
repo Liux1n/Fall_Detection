@@ -29,3 +29,4 @@ data/
 # Exported Models
 saved_models/
 saved_data/
+checkpoints/

@@ -11,10 +11,16 @@ def conv1d_3_block():
     ])
     return block
 
-def ConvLSTM_VGG():
+def ConvLSTM_VGG(axis_num):
     model = models.Sequential([
         # The Conv1D-3 Block is repeated three times
-        conv1d_3_block(),
+        # conv1d_3_block(),
+        layers.Conv1D(filters=64, kernel_size=3, padding='same', input_shape=(50, axis_num)),
+        layers.Conv1D(filters=64, kernel_size=3, padding='same'),
+        layers.Conv1D(filters=64, kernel_size=3, padding='same'),
+        layers.ReLU(),
+        layers.BatchNormalization(),
+        layers.MaxPooling1D(pool_size=2, strides=2, padding='same'),
         conv1d_3_block(),
         conv1d_3_block(),
         # Followed by two LSTM layers

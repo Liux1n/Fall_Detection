@@ -126,13 +126,13 @@ class inferenceGUI:
                                 # if self.impact_onset: # safe & impact in last frame
                                 #     self.safe = True
                                 # self.impact_onset = False
-                                self.pred_label.config(text="You are safe!")
+                                self.pred_label.config(text=f"Inference output received, \noutput1: {output1}, output2: {output2}, inference delay: {elapsed_time}us.\nYou are safe!")
                             else:
                                 self.fall_judement += 1
                                 if self.fall_judement >= self.num_consecutive_falls:
                                     # self.pred_label.config(text="You are Falling!!! Call 112!!!")
                                     for i in range(30, 0, -1):
-                                        self.pred_label.config(text=f"You are Falling!!! Call 112!!!\nReset in {i/10:.1f}(s)...")
+                                        self.pred_label.config(text=f"Inference output received, \noutput1: {output1}, output2: {output2}, inference delay: {elapsed_time}us.\nou are Falling!!! Call 112!!!\nReset in {i/10:.1f}(s)...")
                                         time.sleep(0.1)
                                     self.fall_judement = 0
                                 # self.pred_label.config(text="You are Falling!!! Call 112!!!")
